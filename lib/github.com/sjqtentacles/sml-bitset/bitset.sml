@@ -125,6 +125,59 @@ struct
 
   fun isEmpty (_, a) = Array.all (fn w => w = 0w0) a
 
+  (* rank(b, i) = #{ j < i : member(b, j) }.  `i` is clamped to [0, capacity]:
+     a non-positive `i` ranks to 0 and any i >= capacity ranks to `count`. We
+     popcount whole chunks below `i`, then mask the partial chunk holding the
+     bits `0 .. (i mod 32) - 1`. *)
+  fun rank (cap, a) i =
+      let
+        val i = if i < 0 then 0 else if i > cap then cap else i
+        val fullChunks = i div bitsPerWord
+        val rem = i mod bitsPerWord
+        fun loop (ci, acc) =
+            if ci >= fullChunks then acc
+            else loop (ci + 1, acc + popcountWord (Array.sub (a, ci)))
+        val whole = loop (0, 0)
+      in
+        if rem = 0 then whole
+        else
+          let
+            val w = Array.sub (a, fullChunks)
+            val mask = Word32.<< (0w1, Word.fromInt rem) - 0w1
+          in whole + popcountWord (Word32.andb (w, mask)) end
+      end
+
+  (* index of the n-th set bit (0-based) within a single 32-bit chunk; the
+     caller guarantees the chunk has more than n set bits. *)
+  fun nthBitInWord (w, n) =
+      let
+        fun go (b, w, n) =
+            if Word32.andb (w, 0w1) <> 0w0
+            then (if n = 0 then b else go (b + 1, Word32.>> (w, 0w1), n - 1))
+            else go (b + 1, Word32.>> (w, 0w1), n)
+      in go (0, w, n) end
+
+  (* select(b, k) = index of the k-th set bit (0-based), or NONE when there are
+     fewer than k+1 set bits (so every k < 0 yields NONE). Phantom high bits
+     beyond the capacity are always zero, so the result is always < capacity. *)
+  fun select (_, a) k =
+      if k < 0 then NONE
+      else
+        let
+          val nc = Array.length a
+          fun loop (ci, rem) =
+              if ci >= nc then NONE
+              else
+                let
+                  val w = Array.sub (a, ci)
+                  val pc = popcountWord w
+                in
+                  if rem < pc
+                  then SOME (ci * bitsPerWord + nthBitInWord (w, rem))
+                  else loop (ci + 1, rem - pc)
+                end
+        in loop (0, k) end
+
   fun foldBits f init (cap, a) =
       let
         fun chunkFold (ci, w, acc) =

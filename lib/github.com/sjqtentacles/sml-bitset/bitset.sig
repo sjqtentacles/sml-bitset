@@ -48,6 +48,18 @@ sig
   val count   : bitset -> int
   val isEmpty : bitset -> bool
 
+  (* `rank b i` is the number of set bits at indices strictly less than `i`:
+     rank(b, i) = #{ j < i : member(b, j) }. `i` is clamped to [0, capacity],
+     so rank(b, 0) = 0 and rank(b, i) = count b for any i >= capacity (no
+     exception on out-of-range `i`). *)
+  val rank : bitset -> int -> int
+
+  (* `select b k` is the index of the k-th set bit, counting from 0 in
+     ascending order, or NONE when the set has fewer than k+1 set bits (which
+     includes every k < 0). Inverse of `rank` on set bits:
+     rank(b, valOf (select(b, k))) = k for 0 <= k < count b. *)
+  val select : bitset -> int -> int option
+
   (* Fold over the indices of set bits in ascending order. *)
   val foldBits : (int * 'a -> 'a) -> 'a -> bitset -> 'a
 

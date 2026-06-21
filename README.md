@@ -71,6 +71,36 @@ phantom bits beyond it:
 Bitset.equals (Bitset.complement (Bitset.empty 33), Bitset.full 33)  (* true *)
 ```
 
+### Rank and select
+
+`rank` and `select` are the usual succinct-structure primitives and are
+inverses of each other on set bits.
+
+`rank b i` counts the set bits at indices **strictly less than** `i`, i.e.
+`rank(b, i) = #{ j < i : member(b, j) }`. The index `i` is clamped to
+`[0, capacity]`, so `rank(b, 0) = 0` and `rank(b, i) = count b` for any
+`i >= capacity` (no exception on an out-of-range `i`).
+
+`select b k` returns the index of the `k`-th set bit, counting from `0` in
+ascending order, or `NONE` when the set has fewer than `k + 1` set bits (which
+includes every `k < 0`).
+
+```sml
+val b = Bitset.fromList 100 [0, 50, 99]
+
+val r0 = Bitset.rank b 0     (* 0  — no bit below index 0          *)
+val r1 = Bitset.rank b 1     (* 1  — bit 0 is below index 1        *)
+val r2 = Bitset.rank b 50    (* 1  — bit 50 is not below index 50  *)
+val rN = Bitset.rank b 1000  (* 3  — clamped to count              *)
+
+val s0 = Bitset.select b 0   (* SOME 0   *)
+val s1 = Bitset.select b 1   (* SOME 50  *)
+val s3 = Bitset.select b 3   (* NONE     *)
+
+(* round-trip on every set bit: rank (select k) = k for k < count *)
+Bitset.rank b (valOf (Bitset.select b 1)) = 1                       (* true *)
+```
+
 ## API summary
 
 | Function | Description |
@@ -86,6 +116,8 @@ Bitset.equals (Bitset.complement (Bitset.empty 33), Bitset.full 33)  (* true *)
 | `complement : bitset -> bitset` | Complement within the capacity. |
 | `count : bitset -> int` | Population count. |
 | `isEmpty : bitset -> bool` | Whether no bits are set. |
+| `rank : bitset -> int -> int` | Set bits at indices strictly below `i`. |
+| `select : bitset -> int -> int option` | Index of the k-th set bit (0-based). |
 | `foldBits : (int * 'a -> 'a) -> 'a -> bitset -> 'a` | Fold set indices ascending. |
 | `toList : bitset -> int list` | Set indices in ascending order. |
 | `equals : bitset * bitset -> bool` | Structural equality. |
