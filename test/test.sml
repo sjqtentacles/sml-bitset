@@ -1,13 +1,8 @@
-(* Dependency-free test runner for the Bitset structure.
- * Prints one line per assertion and exits non-zero if any assertion fails. *)
+(* Tests for sml-bitset, standardized on the shared sml-test Harness. *)
 
-val passed = ref 0
-val failed = ref 0
-
-fun check (name : string) (cond : bool) : unit =
-    if cond
-    then (passed := !passed + 1; print ("ok   - " ^ name ^ "\n"))
-    else (failed := !failed + 1; print ("FAIL - " ^ name ^ "\n"))
+structure Tests =
+struct
+  open Harness
 
 fun raisesSub (thunk : unit -> 'a) : bool =
     (ignore (thunk ()); false) handle General.Subscript => true | _ => false
@@ -232,9 +227,6 @@ fun run () =
     val () = check "randomized select matches bool-array reference" (!selectOk)
     val () = check "randomized rank(select k) = k round-trip" (!roundOk)
   in
-    print ("\n" ^ Int.toString (!passed) ^ " passed, "
-           ^ Int.toString (!failed) ^ " failed\n");
-    OS.Process.exit (if !failed = 0 then OS.Process.success else OS.Process.failure)
+    Harness.run ()
   end
-
-val () = run ()
+end
