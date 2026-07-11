@@ -101,6 +101,32 @@ val s3 = Bitset.select b 3   (* NONE     *)
 Bitset.rank b (valOf (Bitset.select b 1)) = 1                       (* true *)
 ```
 
+## Example
+
+`make example` builds and runs [`examples/demo.sml`](examples/demo.sml), which
+walks through membership, persistent add/remove, set algebra, complement, and
+rank/select on a small worked set (output is byte-identical under MLton and
+Poly/ML):
+
+```
+a = [1,3,5,7,9,11]
+  count a    = 6
+  capacity a = 20
+member a 5 = true
+member a 6 = false
+after remove 5, add 6:
+  a  = [1,3,5,7,9,11]  (unchanged)
+  a' = [1,3,6,7,9,11]
+b = [3,4,5,6]
+union a b = [1,3,4,5,6,7,9,11]
+inter a b = [3,5]
+diff  a b = [1,7,9,11]
+complement of [0,2,4,6] over capacity 8: count = 4
+rank a 6   = 3
+select a 2 = 5
+sum of set-bit indices in a = 36
+```
+
 ## API summary
 
 | Function | Description |
