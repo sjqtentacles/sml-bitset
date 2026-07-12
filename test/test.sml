@@ -226,6 +226,88 @@ fun run () =
     val () = check "randomized rank matches bool-array reference" (!rankOk)
     val () = check "randomized select matches bool-array reference" (!selectOk)
     val () = check "randomized rank(select k) = k round-trip" (!roundOk)
+
+    (* ---- properties (sml-check, seed 0wx1) ---- *)
+    val () = section "properties (sml-check, seed 0wx1)"
+    val seed : Check.seed = 0wx1
+    val cap = 64
+    val genIdx = Check.choose (0, cap - 1)
+    val genIdxList = Check.listOf genIdx
+    fun showIntList xs = "[" ^ String.concatWith "," (List.map Int.toString xs) ^ "]"
+    fun showPair (xs, ys) = showIntList xs ^ " / " ^ showIntList ys
+
+    (* naive reference set-algebra over plain int lists *)
+    fun mem xs i = List.exists (fn j => j = i) xs
+    fun refUnionList (xs, ys) =
+        List.filter (fn i => mem xs i orelse mem ys i) (List.tabulate (cap, fn i => i))
+    fun refInterList (xs, ys) =
+        List.filter (fn i => mem xs i andalso mem ys i) (List.tabulate (cap, fn i => i))
+    fun refDiffList (xs, ys) =
+        List.filter (fn i => mem xs i andalso not (mem ys i)) (List.tabulate (cap, fn i => i))
+
+    (* union matches the naive int-list reference. *)
+    val () =
+      Harness.check "prop: union matches naive reference"
+        (case Check.quickCheck
+                (Check.forAll (Check.tuple2 (genIdxList, genIdxList)) showPair
+                   (fn (xs, ys) =>
+                      B.toList (B.union (B.fromList cap xs, B.fromList cap ys))
+                      = refUnionList (xs, ys))) of
+             Check.Passed _ => true
+           | Check.Failed _ => false)
+
+    (* inter matches the naive int-list reference. *)
+    val () =
+      Harness.check "prop: inter matches naive reference"
+        (case Check.quickCheck
+                (Check.forAll (Check.tuple2 (genIdxList, genIdxList)) showPair
+                   (fn (xs, ys) =>
+                      B.toList (B.inter (B.fromList cap xs, B.fromList cap ys))
+                      = refInterList (xs, ys))) of
+             Check.Passed _ => true
+           | Check.Failed _ => false)
+
+    (* diff matches the naive int-list reference. *)
+    val () =
+      Harness.check "prop: diff matches naive reference"
+        (case Check.quickCheck
+                (Check.forAll (Check.tuple2 (genIdxList, genIdxList)) showPair
+                   (fn (xs, ys) =>
+                      B.toList (B.diff (B.fromList cap xs, B.fromList cap ys))
+                      = refDiffList (xs, ys))) of
+             Check.Passed _ => true
+           | Check.Failed _ => false)
+
+    (* member is true right after add, at that index. *)
+    val () =
+      Harness.check "prop: member is true right after add"
+        (case Check.quickCheck
+                (Check.forAll (Check.tuple2 (genIdxList, genIdx))
+                   (fn (xs, i) => showIntList xs ^ " i=" ^ Int.toString i)
+                   (fn (xs, i) => B.member (B.add (B.fromList cap xs) i) i)) of
+             Check.Passed _ => true
+           | Check.Failed _ => false)
+
+    (* member is false right after remove, at that index. *)
+    val () =
+      Harness.check "prop: member is false right after remove"
+        (case Check.quickCheck
+                (Check.forAll (Check.tuple2 (genIdxList, genIdx))
+                   (fn (xs, i) => showIntList xs ^ " i=" ^ Int.toString i)
+                   (fn (xs, i) => not (B.member (B.remove (B.fromList cap xs) i) i))) of
+             Check.Passed _ => true
+           | Check.Failed _ => false)
+
+    (* count always equals List.length of toList. *)
+    val () =
+      Harness.check "prop: count = List.length o toList"
+        (case Check.quickCheck
+                (Check.forAll genIdxList showIntList
+                   (fn xs =>
+                      let val bs = B.fromList cap xs
+                      in B.count bs = List.length (B.toList bs) end)) of
+             Check.Passed _ => true
+           | Check.Failed _ => false)
   in
     Harness.run ()
   end
